@@ -25,7 +25,6 @@ import os
 import gc
 import argparse
 
-# function to get arguments from the command line
 def get_args():
   parser = argparse.ArgumentParser()
   # optional arguments
@@ -61,9 +60,9 @@ def get_logo_groups(data):
   groups[7895:]=10
 
   return groups
-
 """# Data corruption"""
 
+# single fragment data corruption
 def corrupt_data(fold, width, multiple_fragments=False):
   if multiple_fragments:
     corrupt_data_multiple_fragments(fold,width)
@@ -109,9 +108,9 @@ def get_model():
   model.add(layers.MaxPooling1D(pool_size=4, padding="same"))
   model.add(layers.Flatten())
   model.add(layers.Dense(128, activation="relu", kernel_regularizer=regularizers.l2(l=0.001))) 
-  model.add(layers.Dropout(0.5))
+  model.add(layers.Dropout(0.6))
   model.add(layers.Dense(64,activation="relu", kernel_regularizer=regularizers.l2(l=0.001)))
-  model.add(layers.Dropout(0.5))
+  model.add(layers.Dropout(0.6))
   model.add(layers.Dense(10, activation="softmax"))
 
   #model.summary()
@@ -120,10 +119,10 @@ def get_model():
 
   return model
 
+
 # YAMNet: range (-1,1); 16 kHz sr; Mono-channel
-def get_embeddings_yamnet(training_set, test_set): 
+def get_embeddings_yamnet(training_set, test_set, yamnet): 
   print("Extracting embeddings..")
-  yamnet = hub.load("https://tfhub.dev/google/yamnet/1") 
   scaler = MinMaxScaler(feature_range=(-1, 1))
   X_scaled = scaler.fit_transform(training_set.reshape(-1, 64000))
   embeddings = []
@@ -146,11 +145,11 @@ def get_classifier():
     tf.keras.layers.Input(shape=(8192), dtype=tf.float32,
                           name='input_embedding'),
     tf.keras.layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.L2(0.001)), 
-    tf.keras.layers.Dropout(0.4),
+    tf.keras.layers.Dropout(0.5),
     tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=tf.keras.regularizers.L2(0.001)), 
-    tf.keras.layers.Dropout(0.4),
+    tf.keras.layers.Dropout(0.5),
     tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=tf.keras.regularizers.L2(0.001)), 
-    tf.keras.layers.Dropout(0.4),
+    tf.keras.layers.Dropout(0.5),
     tf.keras.layers.Dense(10, activation="softmax") 
     ], name='classifier')
 
@@ -163,10 +162,11 @@ def get_classifier():
                                             restore_best_weights=True)
     return classifier
 
-def run_model(dataset, labels, corrupt_train, corrupt_test, corruption_length, batch_size=128, epochs=15, multiple=True, pretrained=False):
+def run_model(dataset, labels, corrupt_train, corrupt_test, corruption_length, batch_size=128, epochs=1, multiple=True, pretrained=False):
 
   if(pretrained):
     dataset = dataset.reshape(-1,64000,1)
+    yamnet = hub.load("https://tfhub.dev/google/yamnet/1") 
   else:
     dataset = dataset.reshape(-1,32000,1)
   logo = LeaveOneGroupOut()
@@ -202,7 +202,7 @@ def run_model(dataset, labels, corrupt_train, corrupt_test, corruption_length, b
     if(pretrained):
       model_name = "yamnet"
       model = get_classifier()
-      X_tr, X_ts = get_embeddings_yamnet(X_tr, X_ts)
+      X_tr, X_ts = get_embeddings_yamnet(X_tr, X_ts, yamnet)
     else:
       model_name = "cnn"
       model = get_model()
@@ -282,6 +282,7 @@ def save_results(results):
       fig2.savefig("./UrbanSound8K/plots/{}/{}/logoaccuracies.png".format(results["model_name"],results["mode"]), format="png")   
   else:        
     try:
+      # controlla nomi cartelle uguali 
       run.to_csv("./UrbanSound8K/plots/{}/{}/sim-{}-{}/accuracies.csv".format(results["model_name"],results["mode"],results["corr_length"], multiple_format), index=False)
       df.to_csv("./UrbanSound8K/plots/{}/{}/sim-{}-{}/predictions.csv".format(results["model_name"],results["mode"],results["corr_length"], multiple_format), index=False)
       fig1.savefig("./UrbanSound8K/plots/{}/{}/sim-{}-{}/confusionmatrix.png".format(results["model_name"],results["mode"],results["corr_length"], multiple_format), bbox_inches='tight', transparent=True)
@@ -292,3 +293,76 @@ def save_results(results):
       df.to_csv("./UrbanSound8K/plots/{}/{}/sim-{}-{}/predictions.csv".format(results["model_name"],results["mode"],results["corr_length"], multiple_format), index=False)
       fig1.savefig("./UrbanSound8K/plots/{}/{}/sim-{}-{}/confusionmatrix.png".format(results["model_name"],results["mode"],results["corr_length"], multiple_format), bbox_inches='tight', transparent=True)
       fig2.savefig("./UrbanSound8K/plots/{}/{}/sim-{}-{}/logoaccuracies.png".format(results["model_name"],results["mode"],results["corr_length"], multiple_format), bbox_inches='tight', transparent=True)
+
+def read_files(files, root_dir_path, mean_accuracy, mean_std, sim_name, mode, model_name):  
+  for f in files:
+    if(f.endswith("es.csv")):      
+      dfr = pd.read_csv(root_dir_path+'/'+ f)
+
+      accuracy = np.mean(dfr.values)
+      try:
+        mean_accuracy[mode+"_"+model_name].append(accuracy)
+      except KeyError:
+        mean_accuracy[mode+"_"+model_name]=[accuracy]
+
+      std = np.std(dfr.values)
+      try:
+        mean_std[mode+"_"+model_name].append(std)
+      except KeyError:
+        mean_std[mode+"_"+model_name]=[std]
+
+      try:
+        sim_name[mode+"_"+model_name].append(root_dir_path.rpartition('/')[-1])
+      except KeyError:
+        sim_name[mode+"_"+model_name]= [root_dir_path.rpartition('/')[-1]]
+
+  return sim_name, mean_accuracy
+
+# function to load the results from the different folders
+def load_results(path):
+  mean_accuracy = {}
+  mean_std = {}
+  sim_name = {}
+  # it takes "./UrbanSound8K" instead of "./UrbanSound8K/dati"
+  path = os.path.dirname(os.path.dirname(path))
+  accuracies_df = {}
+  for root_dir_path, sub_dirs, files in os.walk(os.path.join(path,'plots')):
+    if root_dir_path.__contains__('C_ts') or root_dir_path.__contains__('C_tr') or root_dir_path.__contains__('C_all'):
+      if("cnn" in root_dir_path):
+        model_name = "cnn"
+      elif("yamnet" in root_dir_path):
+        model_name = "yamnet"
+      if("C_tr" in root_dir_path):
+        mode="C_tr"
+      elif("C_all" in root_dir_path):
+        mode="C_all"  
+      elif("C_ts" in root_dir_path):
+        mode="C_ts"   
+      sim_name, mean_accuracy = read_files(files, root_dir_path, mean_accuracy, mean_std, sim_name, mode, model_name)  
+      if(len(sim_name)):
+        try:
+          accuracies_df[mode+"_"+model_name]=pd.DataFrame({"Simulation name": sim_name[mode+"_"+model_name], "Mean accuracy": mean_accuracy[mode+"_"+model_name]})
+        except KeyError:
+          continue
+  return accuracies_df
+
+# function to save the overall results
+def save_final_results(path):
+  plt.figure(figsize=(8,5))
+  results = load_results(path)
+  for simulation, result in results.items():
+    result.sort_values("Mean accuracy", ascending=False, inplace=True)
+    print("Sim: ", simulation)
+    plt.tight_layout()
+    plt.title("Test accuracy with different corruptions - Simulation: {}".format(simulation))    
+    plt.bar(result["Simulation name"], result["Mean accuracy"])
+    plt.xlabel('Simulation')
+    plt.ylabel('Accuracy')
+    try:
+      plt.savefig("./UrbanSound8K/plots/overall_results/{}/{}.png".format(simulation.rpartition('_')[-1], simulation.rpartition('_')[0]),bbox_inches='tight', transparent=True)
+      print("Saved to: {}".format("./UrbanSound8K/plots/overall_results/{}/{}.png".format(simulation.rpartition('_')[-1], simulation.rpartition('_')[0])))
+    except OSError:
+      os.makedirs("./UrbanSound8K/plots/overall_results/{}".format(simulation.rpartition('_')[-1]))
+      plt.savefig("./UrbanSound8K/plots/overall_results/{}/{}.png".format(simulation.rpartition('_')[-1], simulation.rpartition('_')[0]),bbox_inches='tight', transparent=True)
+    plt.show()
+    
