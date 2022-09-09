@@ -8,3 +8,12 @@ Summary:
 * Hyperparameter tuning in order to obtain better classification results 
 * Reconstruction using a GAN, passing through the mel spectrogram
 * Classification after reconstruction, directly giving YAMNet the reconstructed spectrograms (to be completed) 
+
+The code is structured in the following way:
+1. data_creation.py: script that creates npz files containing waveforms (both for the 8000 and 16000 s.rate cases)
+2. helper_functions.py: script that contains all the functions to run the CNN model and the pretrained (YAMNet) model. Moreover, in this script we can find the functions aimed at corrupting the audio files and those dedicated to the results saving. 
+3. models_run.py: actual script dedicated to the execution of the above mentioned models. 
+4. hp_tuning.py: hyperparameter tuning of the CNN model 
+5. gan_16khz.py: Generative Adversarial Network is run in this script in order to obtain a reconstructed version of the dataset, passing through the mel-spectrogram and getting it ready for YAMNet. 
+6. embeddings_extraction.py: embeddings extraction script, aimed at putting the data in the exact format for YAMnet.
+7. yamnet_embeddings_classification.py: script that lastly classify the reconstructed data 
