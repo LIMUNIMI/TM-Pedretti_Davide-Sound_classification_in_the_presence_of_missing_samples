@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import random 
 import copy
+import os 
 from numpy import savez_compressed, load
 import keras.backend as K
 from keras import regularizers
@@ -31,6 +32,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import accuracy_score
 from helper_functions import * 
+
+SEED=42
+tf.random.set_seed(SEED)
+np.random.seed(SEED)
+random.seed(SEED)
+os.environ['TF_CUDNN_DETERMINISTIC']='1'
 
 yamnet = keras.models.load_model("./saved_model/yamnet")
 labels = pd.read_csv("./UrbanSound8K/dati/all_labels.csv")
@@ -182,8 +189,95 @@ def save_results(results):
       fig1.savefig("./UrbanSound8K/plots/{}/{}-{}/confusionmatrix.svg".format(results["model_name"],results["mode"], results["corr_length"]), format="svg") 
       fig2.savefig("./UrbanSound8K/plots/{}/{}-{}/logoaccuracies.svg".format(results["model_name"],results["mode"], results["corr_length"]), format="svg")   
 
-# completa con read_files, load_results e save_final_results
+############################### Saving the results ###################################
+
+def read_files(files, root_dir_path, mean_accuracy, mean_std, sim_name, mode, corruption_length):  
+  for f in files:
+    if(f.endswith("es.csv")):      
+      dfr = pd.read_csv(root_dir_path+'/'+ f)
+
+      accuracy = np.mean(dfr.values)
+      try:
+        mean_accuracy[mode+"_"+corruption_length].append(accuracy)
+      except KeyError:
+        mean_accuracy[mode+"_"+corruption_length]=[accuracy]
+
+      std = np.std(dfr.values)
+      try:
+        mean_std[mode+"_"+corruption_length].append(std)
+      except KeyError:
+        mean_std[mode+"_"+corruption_length]=[std]
+
+      try:
+        sim_name[mode+"_"+corruption_length].append(root_dir_path.rpartition('/')[-1])
+      except KeyError:
+        sim_name[mode+"_"+corruption_length]= [root_dir_path.rpartition('/')[-1]]
+
+  return sim_name, mean_accuracy
+
+# function to load the results from the different folders
+def load_results(path):
+  mean_accuracy = {}
+  mean_std = {}
+  sim_name = {}
+  # it takes "./UrbanSound8K" instead of "./UrbanSound8K/dati"
+  path = os.path.dirname(path)
+  accuracies_df = {}
+  for root_dir_path, sub_dirs, files in os.walk(os.path.join(path,'plots')):
+    if root_dir_path.__contains__('yamnet'):  
+      if("NC" in root_dir_path):
+        mode = "no_corruption"
+        corruption_length= ""
+        sim_name, mean_accuracy = read_files(files, root_dir_path, mean_accuracy, mean_std, sim_name, mode, corruption_length) 
+      elif("C_all" in root_dir_path) and root_dir_path.__contains__('SF'):
+        mode = "all_corrupted"
+        corruption_length=root_dir_path.rpartition('-')[-3].rpartition('/')[-1].rpartition('-')[-1]
+        sim_name, mean_accuracy = read_files(files, root_dir_path, mean_accuracy, mean_std, sim_name, mode, corruption_length) 
+      elif("reconstructed" in root_dir_path):
+        mode = "reconstructed"  
+        corruption_length=root_dir_path.rpartition('-')[-1]
+        sim_name, mean_accuracy = read_files(files, root_dir_path, mean_accuracy, mean_std, sim_name, mode, corruption_length)        
+      if(len(sim_name)):
+        try:
+          accuracies_df[mode+"_"+corruption_length]=pd.DataFrame({"Simulation name": sim_name[mode+"_"+corruption_length], "Mean accuracy": mean_accuracy[mode+"_"+corruption_length]})
+        except KeyError:
+          continue
+  return accuracies_df
+
+# function to save the overall results
+def save_final_results(path):
+  results = load_results(path)
+  NC = results["no_corruption_"]['Mean accuracy'].values[0]
+  data = [[NC, NC, NC, NC, NC],
+          [results["all_corrupted_500"]['Mean accuracy'].values[0], 
+           results["all_corrupted_1000"]['Mean accuracy'].values[0], 
+           results["all_corrupted_2000"]['Mean accuracy'].values[0],
+           results["all_corrupted_4000"]['Mean accuracy'].values[0],
+           results["all_corrupted_8000"]['Mean accuracy'].values[0]],
+          [results["reconstructed_500"]['Mean accuracy'].values[0],
+           results["reconstructed_1000"]['Mean accuracy'].values[0],
+           results["reconstructed_2000"]['Mean accuracy'].values[0], 
+           results["reconstructed_4000"]['Mean accuracy'].values[0],
+           results["reconstructed_8000"]['Mean accuracy'].values[0]]]
+  X = np.arange(5)
+  fig = plt.figure(figsize=(15,6))
+  ax = fig.add_axes([0,0,1,1])
+  ax.set_ylabel('Accuracy')
+  ax.set_xlabel('Corruption length')
+  ax.bar(X + 0.00, data[0], color = '#BC8F8F', width = 0.25, edgecolor = 'black')
+  ax.bar(X + 0.25, data[1], color = '#3CB371', width = 0.25, edgecolor = 'black')
+  ax.bar(X + 0.50, data[2], color = '#87CEEB', width = 0.25, edgecolor = 'black')
+  ax.set_xticks(X+0.25)
+  ax.set_xticklabels(["500","1000","2000","4000", "8000"]) 
+  ax.legend(labels=['No corruption', 'Corruption', 'Reconstruction'])
+  try:
+    fig.savefig("./UrbanSound8K/plots/overall_results_after_reconstruction/results.svg",bbox_inches='tight', format="svg")
+    print("Saved to: {}".format("./UrbanSound8K/plots/overall_results_after_reconstruction/results.svg"))
+  except OSError:
+    os.makedirs("./UrbanSound8K/plots/overall_results_after_reconstruction")
+    fig.savefig("./UrbanSound8K/plots/overall_results_after_reconstruction/results.svg",bbox_inches='tight', format="svg")
 
 if __name__ == '__main__':
-  results = run_final_model(labels, corruption_length=4000)
-  save_results(results)
+  results = run_final_model(labels, corruption_length=2000)
+  save_results(results) # save the results of a single execution 
+  save_final_results("./UrbanSound8K/dati") # save the overall results 
