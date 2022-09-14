@@ -217,10 +217,10 @@ class ContextEncoder():
                                          n_mels=64)
           imgs_mel.append(x_mel_librosa)
           # 400 = window size 
-          rand1 = random.randint(self.corruption_length+400, int(len(sample)-3*self.corruption_length)) 
+          rand1 = random.randint(self.corruption_length+400, int(len(sample)-2*self.corruption_length)) 
           zeros = np.zeros(shape=sample[rand1:].shape)
           if (sample[rand1:]==zeros).all() == True or sample[rand1:rand1+self.corruption_length, :].shape[0]<self.sr:
-              rand1 = random.randint(self.corruption_length+400, int(len(sample)-3*self.corruption_length)) # 16000
+              rand1 = random.randint(self.corruption_length+400, int(len(sample)-2*self.corruption_length)) # 16000
               missing_parts[i]=sample[rand1:rand1+self.corruption_length, :]
           else:
               missing_parts[i]=sample[rand1:rand1+self.corruption_length, :]
@@ -244,11 +244,8 @@ class ContextEncoder():
 
           # (16, 128) 
           previous_frames.append(imgs_mel[i][:,(r_mel-l_mel):r_mel].T) 
-          #print("Previous frames shape: ", previous_frames[i].shape)
           gap_frames.append(imgs_mel[i][:, r_mel:(r_mel+l_mel)].T)
-          #print("Gap frames shape: ", gap_frames[i].shape)
           next_frames.append(imgs_mel[i][:,(r_mel+l_mel):(r_mel + 2*l_mel)].T)
-          #print("Next frames shape: ", next_frames[i].shape)
 
         # missing_parts is referred to the waveform, gap_frames is referred to the spectro
         return np.array(masked_imgs), missing_parts, masked_imgs_mel, imgs_mel, missing_parts_mel, previous_frames, gap_frames, next_frames, np.array(x1_mel), np.array(x2_mel)
@@ -361,7 +358,7 @@ class ContextEncoder():
         save(self.discriminator, "discriminator")
 
 if __name__ == '__main__':
-    context_encoder = ContextEncoder(corr_length=8000)
+    context_encoder = ContextEncoder(corr_length=2000)
     context_encoder.train(epochs=70, batch_size=128, sample_interval=10)
     context_encoder.save_images(context_encoder.X_train, "./UrbanSound8K/dati/full_reconstructed_16kHz_%s.npz" % context_encoder.corruption_length)
     #context_encoder.save_model()
