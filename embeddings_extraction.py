@@ -25,6 +25,14 @@ import IPython.display as ipd
 from tqdm import tqdm
 from helper_functions import * 
 
+args = get_args()
+
+SEED=42
+tf.random.set_seed(SEED)
+np.random.seed(SEED)
+random.seed(SEED)
+os.environ['TF_CUDNN_DETERMINISTIC']='1'
+
 yamnet = keras.models.load_model("./saved_model/yamnet")
 
 def frame_spectrograms(reconstructed_spectrograms):
@@ -86,13 +94,16 @@ def framing(corruption_length):
   elif(corruption_length==16000):
     print("***Embeddings extraction with reconstructed dataset (initial corruption of 16000)***")
     dataset_rec = load("./UrbanSound8K/dati/full_reconstructed_16kHz_16000.npz")
+  elif(corruption_length==20000):
+    print("***Embeddings extraction with reconstructed dataset (initial corruption of 20000)***")
+    dataset_rec = load("./UrbanSound8K/dati/full_reconstructed_16kHz_20000.npz")
   # framing 
   rec = dataset_rec['arr_0']
   dataset = frame_spectrograms(rec)
   return dataset 
 
 if __name__ == '__main__':
-  corruption_length=4000
+  corruption_length=args.corruptionSize
   data = framing(corruption_length)
   mel_yamnet_embeddings = get_mel_yamnet_embeddings()
   final_data = get_all_embeddings_yamnet(data, mel_yamnet_embeddings)
