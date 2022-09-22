@@ -32,7 +32,6 @@ python gan_16khz.py
 - --corruptionSize (to be followed by the corruption size you want to reconstruct with the GAN)
 
 **Classification after reconstruction**
-python embeddings_extraction.py 
+python embeddings_extraction.py & python yamnet_embeddings_classification.py 
 - --corruptionSize (to be followed by the corruption size for which you want to extract embeddings)
-python yamnet_embeddings_classification.py 
 - --corruptionSize (to be followed by the reconstructed portion size to perform classification)
