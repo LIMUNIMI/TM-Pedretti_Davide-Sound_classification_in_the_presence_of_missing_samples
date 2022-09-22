@@ -21,18 +21,18 @@ The code is structured in the following way:
 ## List of commands: 
 **Classification**
 python models_run.py 
---pretrained (if you want to use YAMNet, otherwise it automatically select the CNN) 
---multiple (if you want to use multiple fragments corruption, otherwise it automatically select the single-fragment one)
---corruptTrain (if you want to corrupt the training data)
---corruptTest (if you want to corrupt the test data)
---corruptionSize (to be followed by the corruption size e.g. 500, 1000, 2000, etc..)
+- --pretrained (if you want to use YAMNet, otherwise it automatically select the CNN) 
+- --multiple (if you want to use multiple fragments corruption, otherwise it automatically select the single-fragment one)
+- --corruptTrain (if you want to corrupt the training data)
+- --corruptTest (if you want to corrupt the test data)
+- --corruptionSize (to be followed by the corruption size e.g. 500, 1000, 2000, etc..)
 
 **Reconstruction**
 python gan_16khz.py
---corruptionSize (to be followed by the corruption size you want to reconstruct with the GAN)
+- --corruptionSize (to be followed by the corruption size you want to reconstruct with the GAN)
 
 **Classification after reconstruction**
 python embeddings_extraction.py 
---corruptionSize (to be followed by the corruption size for which you want to extract embeddings)
+- --corruptionSize (to be followed by the corruption size for which you want to extract embeddings)
 python yamnet_embeddings_classification.py 
---corruptionSize (to be followed by the reconstructed portion size to perform classification)
+- --corruptionSize (to be followed by the reconstructed portion size to perform classification)
