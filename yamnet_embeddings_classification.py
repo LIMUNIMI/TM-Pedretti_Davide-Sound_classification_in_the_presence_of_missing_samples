@@ -33,6 +33,8 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import accuracy_score
 from helper_functions import * 
 
+args = get_args()
+
 SEED=42
 tf.random.set_seed(SEED)
 np.random.seed(SEED)
@@ -92,6 +94,9 @@ def run_final_model(labels, corruption_length, batch_size=128, epochs=30):
   elif(corruption_length==16000):
     print("***YAMNet run with reconstructed dataset (initial corruption of 16000)***")
     dataset_rec = load("./UrbanSound8K/dati/embeddings_16000.npz")
+  elif(corruption_length==20000):
+    print("***YAMNet run with reconstructed dataset (initial corruption of 20000)***")
+    dataset_rec = load("./UrbanSound8K/dati/embeddings_20000.npz")
 
   dataset = dataset_rec['arr_0']
   model_name = "yamnet_after_reconstruction"
@@ -239,7 +244,8 @@ def load_results(path):
         sim_name, mean_accuracy = read_files(files, root_dir_path, mean_accuracy, mean_std, sim_name, mode, corruption_length)        
       if(len(sim_name)):
         try:
-          accuracies_df[mode+"_"+corruption_length]=pd.DataFrame({"Simulation name": sim_name[mode+"_"+corruption_length], "Mean accuracy": mean_accuracy[mode+"_"+corruption_length]})
+          accuracies_df[mode+"_"+corruption_length]=pd.DataFrame({"Simulation name": sim_name[mode+"_"+corruption_length], "Mean accuracy": mean_accuracy[mode+"_"+corruption_length], 
+                                                                  "Std": mean_std[mode+"_"+corruption_length]})
         except KeyError:
           continue
   return accuracies_df
@@ -248,28 +254,34 @@ def load_results(path):
 def save_final_results(path):
   results = load_results(path)
   NC = results["no_corruption_"]['Mean accuracy'].values[0]
-  data = [[NC, NC, NC, NC, NC],
+  dummy = 0.1035017464489223
+  data = [[dummy, dummy, dummy, dummy, dummy, dummy],
+          [NC, NC, NC, NC, NC, NC],
           [results["all_corrupted_500"]['Mean accuracy'].values[0], 
            results["all_corrupted_1000"]['Mean accuracy'].values[0], 
            results["all_corrupted_2000"]['Mean accuracy'].values[0],
            results["all_corrupted_4000"]['Mean accuracy'].values[0],
-           results["all_corrupted_8000"]['Mean accuracy'].values[0]],
+           results["all_corrupted_8000"]['Mean accuracy'].values[0],
+           results["all_corrupted_16000"]['Mean accuracy'].values[0]],
           [results["reconstructed_500"]['Mean accuracy'].values[0],
            results["reconstructed_1000"]['Mean accuracy'].values[0],
            results["reconstructed_2000"]['Mean accuracy'].values[0], 
            results["reconstructed_4000"]['Mean accuracy'].values[0],
-           results["reconstructed_8000"]['Mean accuracy'].values[0]]]
-  X = np.arange(5)
-  fig = plt.figure(figsize=(15,6))
+           results["reconstructed_8000"]['Mean accuracy'].values[0],
+           results["reconstructed_16000"]['Mean accuracy'].values[0]]]
+  X = np.arange(6)
+  fig = plt.figure(figsize=(15,8))
   ax = fig.add_axes([0,0,1,1])
   ax.set_ylabel('Accuracy')
   ax.set_xlabel('Corruption length')
-  ax.bar(X + 0.00, data[0], color = '#BC8F8F', width = 0.25, edgecolor = 'black')
-  ax.bar(X + 0.25, data[1], color = '#3CB371', width = 0.25, edgecolor = 'black')
-  ax.bar(X + 0.50, data[2], color = '#87CEEB', width = 0.25, edgecolor = 'black')
-  ax.set_xticks(X+0.25)
-  ax.set_xticklabels(["500","1000","2000","4000", "8000"]) 
-  ax.legend(labels=['No corruption', 'Corruption', 'Reconstruction'])
+  ax.set_yticks(np.arange(0, 0.65, 0.025))
+  ax.bar(X - 0.2, data[0], color = '#FFFF66', width = 0.2, edgecolor = 'black')
+  ax.bar(X + 0.00, data[1], color = '#BC8F8F', width = 0.2, edgecolor = 'black')
+  ax.bar(X + 0.2, data[2], color = '#3CB371', width = 0.2, edgecolor = 'black')
+  ax.bar(X + 0.4, data[3], color = '#87CEEB', width = 0.2, edgecolor = 'black')
+  ax.set_xticks(X+0.2)
+  ax.set_xticklabels(["500","1000","2000","4000", "8000", "16000"]) 
+  ax.legend(labels=['Dummy Classifier','No corruption', 'Corruption', 'Reconstruction'])
   try:
     fig.savefig("./UrbanSound8K/plots/overall_results_after_reconstruction/results.svg",bbox_inches='tight', format="svg")
     print("Saved to: {}".format("./UrbanSound8K/plots/overall_results_after_reconstruction/results.svg"))
@@ -278,6 +290,6 @@ def save_final_results(path):
     fig.savefig("./UrbanSound8K/plots/overall_results_after_reconstruction/results.svg",bbox_inches='tight', format="svg")
 
 if __name__ == '__main__':
-  results = run_final_model(labels, corruption_length=2000)
+  results = run_final_model(labels, corruption_length=args.corruptionSize)
   save_results(results) # save the results of a single execution 
   save_final_results("./UrbanSound8K/dati") # save the overall results 
