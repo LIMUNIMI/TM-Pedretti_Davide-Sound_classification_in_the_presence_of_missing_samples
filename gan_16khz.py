@@ -27,6 +27,9 @@ import librosa.display
 import gc 
 import os
 import time
+from helper_functions import * 
+
+args = get_args()
 
 # setting a random seed
 SEED=42
@@ -55,9 +58,11 @@ class ContextEncoder():
         self.channels = 1
         self.sr=16000 # sampling rate
         self.corruption_length = corr_length
-        if(corr_length==16000):
-          self.mask_width = 101 
-        if(corr_length==8000):
+        if(corr_length==20000):
+          self.mask_width = 126 
+        elif(corr_length==16000):
+          self.mask_width = 101
+        elif(corr_length==8000):
           self.mask_width = 51
         elif(corr_length==4000):
           self.mask_width = 26
@@ -358,8 +363,7 @@ class ContextEncoder():
         save(self.discriminator, "discriminator")
 
 if __name__ == '__main__':
-    context_encoder = ContextEncoder(corr_length=2000)
+    context_encoder = ContextEncoder(corr_length=args.corruptionSize)
     context_encoder.train(epochs=70, batch_size=128, sample_interval=10)
     context_encoder.save_images(context_encoder.X_train, "./UrbanSound8K/dati/full_reconstructed_16kHz_%s.npz" % context_encoder.corruption_length)
     #context_encoder.save_model()
-    
