@@ -7,7 +7,7 @@ The leading objective of this work is to recognize sound content in the presence
 [Experiments with: no corruption, only training set corruption, only test set corruption, train and test sets corruption (with corruption lengths of 250/32000, 500, 1000, 2000, 4000, 8000)]
 * Hyperparameter tuning in order to obtain better classification results 
 * Reconstruction using a GAN, passing through the mel spectrogram
-* Classification after reconstruction, directly giving YAMNet the reconstructed spectrograms (to be completed) 
+* Classification after reconstruction, directly giving YAMNet the reconstructed spectrograms 
 
 The code is structured in the following way:
 1. ***data_creation.py***: script that creates npz files containing waveforms (both for the 8000 and 16000 s.rate cases).
